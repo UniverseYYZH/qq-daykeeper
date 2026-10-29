@@ -1,4 +1,4 @@
-﻿"""可复用的 Tkinter 控件。"""
+"""可复用的 Tkinter 控件。"""
 
 from __future__ import annotations
 

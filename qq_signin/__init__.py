@@ -1,4 +1,4 @@
-﻿"""QQ 签到助手。
+"""QQ 签到助手。
 
 一个只依赖 Python 标准库的桌面工具：
 - 通过 OneBot 11 HTTP 接口连接 NapCatQQ；

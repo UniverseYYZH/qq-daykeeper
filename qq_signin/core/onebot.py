@@ -1,4 +1,4 @@
-﻿"""OneBot 11 HTTP 客户端。
+"""OneBot 11 HTTP 客户端。
 
 只实现本项目用到的接口，协议格式参考：
 https://github.com/botuniverse/onebot-11

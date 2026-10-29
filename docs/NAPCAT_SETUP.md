@@ -1,4 +1,4 @@
-﻿# NapCat 安装与 OneBot 配置（Windows 11）
+# NapCat 安装与 OneBot 配置（Windows 11）
 
 这份文档只做一件事：把 **NapCatQQ** 跑起来，并让本软件能通过
 **OneBot 11 HTTP** 连上它。
