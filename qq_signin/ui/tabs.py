@@ -1087,13 +1087,21 @@ class RemoteTab(ttk.Frame):
             return
         url = self.address_var.get().strip()
         already = has_remote_client(config, url)
+        if already:
+            messagebox.showinfo(
+                "配置已经存在",
+                "这个上报地址和 reportSelfMessage 已经写好了，不要重复写入。\n\n"
+                "现在只需要完全退出 NapCat，再重新启动它。\n"
+                "启动后到“手机控制”页确认显示“监听中”。",
+                parent=self,
+            )
+            return
         if not messagebox.askyesno(
             "写入 NapCat 配置",
             f"将修改：\n{config.path}\n\n"
             f"写入上报地址：{url}\n"
             "并打开 reportSelfMessage。\n\n"
-            "请先退出 NapCat，否则它退出时可能覆盖修改。\n"
-            f"{'已有相同配置，会更新。' if already else '当前没有相同配置。'}\n\n"
+            "请先退出 NapCat，否则它退出时可能覆盖修改。\n\n"
             "继续？",
             parent=self,
         ):

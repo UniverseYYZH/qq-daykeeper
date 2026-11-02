@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+import time
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -156,6 +157,86 @@ class RemoteControl:
 
         self.service.enqueue_remote_command(command, self_id)
         return True
+
+
+class RemotePoller(threading.Thread):
+    """兜底轮询最近联系人。
+
+    NapCat 的 httpClients 有时需要在写入配置后重启才生效；这个轮询直接
+    使用已经可用的 OneBot HTTP 接口读取“最近联系人”，发现新的自聊命令
+    就交给同一个 ``RemoteControl``，所以不依赖 HTTP 上报是否配置成功。
+    """
+
+    def __init__(
+        self,
+        service: Any,
+        control: RemoteControl,
+        *,
+        interval: float = 10.0,
+    ) -> None:
+        super().__init__(name="qq-signin-remote-poller", daemon=True)
+        self.service = service
+        self.control = control
+        self.interval = max(5.0, float(interval))
+        self._stop_event = threading.Event()
+        self._seen: set[str] = set()
+
+    def stop(self) -> None:
+        self._stop_event.set()
+
+    def run(self) -> None:
+        started_at = time.time() - 2
+        while not self._stop_event.is_set():
+            try:
+                login = self.service.login_info
+                if not self.service.connected or login is None:
+                    self._stop_event.wait(self.interval)
+                    continue
+                self_id = int(login.user_id)
+                client = self.service._client_or_raise()
+                contacts = client.get_recent_contact(count=30)
+                for contact in contacts:
+                    message = contact.get("lastestMsg")
+                    if not isinstance(message, dict):
+                        continue
+                    if str(message.get("post_type", "")) not in {
+                        "message",
+                        "message_sent",
+                    }:
+                        continue
+                    if str(message.get("message_type", "")) != "private":
+                        continue
+                    try:
+                        if int(message.get("user_id") or 0) != self_id:
+                            continue
+                    except (TypeError, ValueError):
+                        continue
+                    try:
+                        timestamp = float(
+                            message.get("time")
+                            or message.get("timestamp")
+                            or 0
+                        )
+                    except (TypeError, ValueError):
+                        timestamp = 0
+                    if timestamp and timestamp < started_at:
+                        continue
+                    message_id = str(
+                        message.get("message_id")
+                        or contact.get("msgId")
+                        or ""
+                    )
+                    key = message_id or f"{timestamp}:{message.get('raw_message', '')}"
+                    if key in self._seen:
+                        continue
+                    payload = dict(message)
+                    if message_id:
+                        payload["message_id"] = message_id
+                    if self.control.handle_event(payload):
+                        self._seen.add(key)
+            except Exception as exc:
+                self.control.logger.debug("手机指令轮询失败：%s", exc)
+            self._stop_event.wait(self.interval)
 
 
 class _Handler(BaseHTTPRequestHandler):

@@ -107,7 +107,7 @@ class OneBotClient:
         headers = {
             "Content-Type": "application/json; charset=utf-8",
             "Accept": "application/json",
-            "User-Agent": "qq-signin/0.6.2",
+            "User-Agent": "qq-signin/0.6.3",
         }
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
@@ -250,6 +250,17 @@ class OneBotClient:
             "send_private_msg",
             {"user_id": int(user_id), "message": message},
         )
+
+    def get_recent_contact(self, *, count: int = 30) -> list[dict[str, Any]]:
+        """读取最近联系人（用于手机指令轮询兜底）。"""
+        data = self.call("get_recent_contact", {"count": int(count)})
+        if isinstance(data, list):
+            return [item for item in data if isinstance(item, dict)]
+        if isinstance(data, dict):
+            items = data.get("list") or data.get("contacts")
+            if isinstance(items, list):
+                return [item for item in items if isinstance(item, dict)]
+        return []
 
     def get_friend_msg_history(
         self,

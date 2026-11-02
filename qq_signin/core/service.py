@@ -34,7 +34,7 @@ from .models import (
 )
 from .onebot import OneBotClient, OneBotError, normalize_base_url
 from .qq_daily import PersonalSignError, QQDailySigner
-from .remote import MENU_TEXT, PREFIX, RemoteControl, RemoteEventServer
+from .remote import MENU_TEXT, PREFIX, RemoteControl, RemoteEventServer, RemotePoller
 from .safety import (
     SafetyError,
     is_risk_error,
@@ -74,6 +74,7 @@ class AppService:
         self.remote_status = "未启动"
         self.remote_port = 0
         self._remote_server: RemoteEventServer | None = None
+        self._remote_poller: RemotePoller | None = None
         self.events: queue.Queue[dict[str, Any]] = queue.Queue()
         self._jobs: queue.Queue[tuple[Any, ...] | None] = queue.Queue()
         self._closed = threading.Event()
@@ -108,16 +109,20 @@ class AppService:
             self._emit("remote_status")
             return
         control = RemoteControl(self, logger=self.logger)
+        self._remote_poller = RemotePoller(self, control)
+        self._remote_poller.start()
         try:
             server = RemoteEventServer(control, config.port, config.token)
         except OSError as exc:
-            self.remote_status = f"端口 {config.port} 启动失败：{exc}"
+            self.remote_status = (
+                f"轮询中（HTTP 端口 {config.port} 失败：{exc}）"
+            )
             self.logger.warning("手机控制监听失败：%s", exc)
             self._emit("remote_status")
             return
         self._remote_server = server
         server.start()
-        self.remote_status = f"监听中 127.0.0.1:{config.port}"
+        self.remote_status = f"监听中 127.0.0.1:{config.port}（含轮询兜底）"
         self.logger.info("手机控制监听：127.0.0.1:%s", config.port)
         self._emit("remote_status")
 
@@ -126,6 +131,9 @@ class AppService:
             return
         self._closed.set()
         self._scheduler.stop()
+        if self._remote_poller is not None:
+            self._remote_poller.stop()
+            self._remote_poller = None
         if self._remote_server is not None:
             self._remote_server.stop()
             self._remote_server = None
