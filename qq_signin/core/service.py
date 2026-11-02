@@ -107,7 +107,7 @@ class AppService:
             self.remote_status = "未启用"
             self._emit("remote_status")
             return
-        control = RemoteControl(self)
+        control = RemoteControl(self, logger=self.logger)
         try:
             server = RemoteEventServer(control, config.port, config.token)
         except OSError as exc:

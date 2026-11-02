@@ -8,6 +8,7 @@ NapCat 的 HTTP 上报（httpClients）把消息事件 POST 到本机，只有
 from __future__ import annotations
 
 import json
+import logging
 import threading
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -94,8 +95,9 @@ def extract_text(payload: dict[str, Any]) -> str:
 class RemoteControl:
     """解析事件并交给服务线程执行，避免在 HTTP 线程里操作 QQ。"""
 
-    def __init__(self, service: Any) -> None:
+    def __init__(self, service: Any, logger: logging.Logger | None = None) -> None:
         self.service = service
+        self.logger = logger or logging.getLogger("qq_signin.remote")
         self._seen: deque[str] = deque(maxlen=300)
         self._seen_set: set[str] = set()
         self._lock = threading.Lock()
@@ -126,6 +128,16 @@ class RemoteControl:
         text = extract_text(payload).strip()
         if not text or text.startswith(PREFIX):
             return False
+        self.logger.info(
+            "手机事件：post_type=%s message_type=%s self_id=%s "
+            "user_id=%s target_id=%s text=%r",
+            post_type,
+            payload.get("message_type"),
+            self_id,
+            user_id,
+            payload.get("target_id"),
+            text,
+        )
         command = parse_command(text)
         if command is None:
             return False
