@@ -1,4 +1,4 @@
-"""OneBot 11 HTTP 客户端。
+﻿"""OneBot 11 HTTP 客户端。
 
 只实现本项目用到的接口，协议格式参考：
 https://github.com/botuniverse/onebot-11
@@ -107,7 +107,7 @@ class OneBotClient:
         headers = {
             "Content-Type": "application/json; charset=utf-8",
             "Accept": "application/json",
-            "User-Agent": "qq-signin/0.6.1",
+            "User-Agent": "qq-signin/0.6.2",
         }
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
