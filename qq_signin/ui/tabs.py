@@ -32,6 +32,9 @@ from ..core.napcat import (
     best_config,
     find_onebot_configs,
     has_remote_client,
+    is_napcat_running,
+    launcher_path,
+    quick_login_accounts,
     write_remote_client,
 )
 from ..core.safety import MAX_SIGN_GROUPS_PER_RUN
@@ -1144,6 +1147,8 @@ class SettingsTab(ttk.Frame):
         self.napcat_config_var = tk.StringVar()
         self.napcat_info_var = tk.StringVar(value="尚未检测 NapCat 配置")
         self.auto_connect_var = tk.BooleanVar(value=True)
+        self.quick_qq_var = tk.StringVar()
+        self.napcat_launch_status_var = tk.StringVar(value="")
         self.show_token_var = tk.BooleanVar(value=False)
         self.account_var = tk.StringVar(value="未连接")
         self._build()
@@ -1265,6 +1270,25 @@ class SettingsTab(ttk.Frame):
             bd=0,
             highlightthickness=0,
         ).grid(row=2, column=0, columnspan=3, sticky="w", pady=(8, 0))
+        quick = tk.Frame(napcat_box, bg=BG)
+        quick.grid(row=3, column=0, columnspan=3, sticky="w", pady=(8, 0))
+        ttk.Label(quick, text="快速登录 QQ").pack(side=tk.LEFT)
+        self.quick_qq_box = ttk.Combobox(
+            quick, textvariable=self.quick_qq_var, width=16
+        )
+        self.quick_qq_box.pack(side=tk.LEFT, padx=(6, 0))
+        ttk.Button(
+            quick, text="启动 NapCat", command=self._start_napcat
+        ).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Label(
+            quick, text="可手动输入其它 QQ 号", foreground="#667085"
+        ).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Label(
+            napcat_box,
+            textvariable=self.napcat_launch_status_var,
+            foreground="#667085",
+            wraplength=780,
+        ).grid(row=4, column=0, columnspan=3, sticky="w", pady=(4, 0))
 
         buttons = ttk.Frame(self)
         buttons.grid(row=9, column=0, columnspan=2, sticky=tk.W, pady=(8, 12))
@@ -1322,6 +1346,8 @@ class SettingsTab(ttk.Frame):
         self.interval_var.set(f"{config.send_interval:g}")
         self.napcat_config_var.set(config.napcat_config)
         self.auto_connect_var.set(config.auto_connect)
+        self.quick_qq_var.set(config.napcat_qq)
+        self._refresh_quick_accounts()
         if config.napcat_config:
             self.napcat_info_var.set(f"已保存配置：{config.napcat_config}")
         else:
@@ -1343,6 +1369,7 @@ class SettingsTab(ttk.Frame):
                 interval,
                 self.webui_var.get(),
                 napcat_config=self.napcat_config_var.get(),
+                napcat_qq=self.quick_qq_var.get(),
                 auto_connect=self.auto_connect_var.get(),
             )
         except ValueError as exc:
@@ -1398,6 +1425,7 @@ class SettingsTab(ttk.Frame):
             f"已读取：{chosen.path}\nHTTP 服务 {state}：{chosen.url}"
         )
         self._save()
+        self._refresh_quick_accounts()
         reachable = self._port_open(chosen.host, chosen.port)
         messagebox.showinfo(
             "已读取 NapCat 配置",
@@ -1420,6 +1448,75 @@ class SettingsTab(ttk.Frame):
                 return True
         except OSError:
             return False
+
+    def _refresh_quick_accounts(self) -> None:
+        config = best_config()
+        accounts = quick_login_accounts(config) if config else []
+        login = self.service.login_info
+        if not accounts and login is not None:
+            accounts = [str(login.user_id)]
+        self.quick_qq_box.configure(values=accounts)
+        if not self.quick_qq_var.get().strip() and accounts:
+            self.quick_qq_var.set(accounts[0])
+
+    def _start_napcat(self) -> None:
+        config = best_config()
+        if config is None:
+            messagebox.showinfo(
+                "没有找到 NapCat",
+                "先点“一键检测并填入”，或手动确认 OneBot 地址。",
+                parent=self,
+            )
+            return
+        launcher = launcher_path(config)
+        if launcher is None:
+            messagebox.showinfo(
+                "没有找到启动脚本",
+                f"在 {config.root} 下没有找到 launcher.bat。",
+                parent=self,
+            )
+            return
+        qq = self.quick_qq_var.get().strip()
+        if not qq.isdigit():
+            messagebox.showinfo(
+                "QQ 号不正确",
+                "请选择或输入要快速登录的 QQ 号。",
+                parent=self,
+            )
+            return
+        if is_napcat_running():
+            messagebox.showinfo(
+                "NapCat 已在运行",
+                "检测到 NapCatWinBootMain.exe 还在运行。\n\n"
+                "请先完全退出 NapCat，再点启动。",
+                parent=self,
+            )
+            return
+        if not messagebox.askyesno(
+            "启动 NapCat",
+            f"将启动：\n{launcher}\n\n"
+            f"快速登录 QQ：{qq}\n\n"
+            "如果 Windows 弹出 UAC，请点“是”。\n继续？",
+            parent=self,
+        ):
+            return
+        try:
+            subprocess.Popen(
+                ["cmd.exe", "/c", str(launcher), "-q", qq],
+                cwd=str(config.root),
+                creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0),
+            )
+        except OSError as exc:
+            messagebox.showerror("启动失败", str(exc), parent=self)
+            return
+        self._save()
+        self.napcat_launch_status_var.set(
+            f"已启动 NapCat（{qq}），等待登录；登录后软件会自动连接。"
+        )
+        self.service.logger.info(
+            "已启动 NapCat：%s -q %s", launcher, qq
+        )
+        self.app.set_status("正在启动 NapCat，等待登录…", "busy")
 
     def _napcat_config_path(self) -> Path | None:
         raw = self.napcat_config_var.get().strip()

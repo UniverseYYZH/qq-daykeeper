@@ -126,10 +126,13 @@ python -m qq_signin
 
 设置页还可以直接：
 
+- **快速登录 QQ**：选择或输入 QQ 号，点“启动 NapCat”，会运行检测到的 `launcher.bat -q <QQ号>`；
 - **打开 WebUI**：扫码登录 NapCat；
 - **打开 NapCat 目录**；
 - **打开 OneBot 配置**；
 - **运行环境检查**。
+
+> 启动前请先完全退出已有的 NapCat；如果检测到 `NapCatWinBootMain.exe` 还在运行，软件会拒绝重复启动。
 
 ![设置](docs/ui-settings.png)
 

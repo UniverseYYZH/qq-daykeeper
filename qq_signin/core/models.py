@@ -1,4 +1,4 @@
-"""应用数据模型。
+﻿"""应用数据模型。
 
 所有需要落盘的对象都提供 ``to_dict`` / ``from_dict``，方便直接查看和手改
 ``data/state.json``。这里的字段尽量保持简单，避免把网络层对象混进来。
@@ -510,6 +510,7 @@ class AppConfig:
     send_interval: float = 8.0
     napcat_webui: str = "http://127.0.0.1:6099"
     napcat_config: str = ""
+    napcat_qq: str = ""
     auto_connect: bool = True
     group_checkin: AutoSignConfig = field(
         default_factory=lambda: AutoSignConfig(time="08:05")
@@ -525,6 +526,7 @@ class AppConfig:
         self.token = str(self.token).strip()
         self.napcat_webui = str(self.napcat_webui).strip().rstrip("/")
         self.napcat_config = str(self.napcat_config).strip()
+        self.napcat_qq = str(self.napcat_qq).strip()
         try:
             self.send_interval = max(5.0, min(60.0, float(self.send_interval)))
         except (TypeError, ValueError):
@@ -537,6 +539,7 @@ class AppConfig:
             "send_interval": self.send_interval,
             "napcat_webui": self.napcat_webui,
             "napcat_config": self.napcat_config,
+            "napcat_qq": self.napcat_qq,
             "auto_connect": self.auto_connect,
             "group_checkin": self.group_checkin.to_dict(),
             "personal_sign": self.personal_sign.to_dict(),
@@ -552,6 +555,7 @@ class AppConfig:
             send_interval=raw.get("send_interval", 8.0),
             napcat_webui=raw.get("napcat_webui", "http://127.0.0.1:6099"),
             napcat_config=raw.get("napcat_config", ""),
+            napcat_qq=raw.get("napcat_qq", ""),
             auto_connect=raw.get("auto_connect", True),
             group_checkin=AutoSignConfig.from_dict(
                 raw.get("group_checkin", {}) or {}, "08:05"

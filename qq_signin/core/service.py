@@ -243,6 +243,7 @@ class AppService:
         napcat_webui: str,
         *,
         napcat_config: str = "",
+        napcat_qq: str = "",
         auto_connect: bool = True,
     ) -> AppConfig:
         """保存连接配置；地址不合法时抛 ``ValueError``。"""
@@ -259,6 +260,7 @@ class AppService:
             state.config.send_interval = interval
             state.config.napcat_webui = webui
             state.config.napcat_config = str(napcat_config or "").strip()
+            state.config.napcat_qq = str(napcat_qq or "").strip()
             state.config.auto_connect = bool(auto_connect)
             return state.config
 

@@ -10,6 +10,8 @@ from pathlib import Path
 from qq_signin.core.napcat import (
     NapCatConfig,
     has_remote_client,
+    launcher_path,
+    quick_login_accounts,
     write_remote_client,
 )
 
@@ -19,9 +21,12 @@ class NapCatConfigTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         root = Path(self.temp.name) / "NapCat.Shell"
+        self.root = root
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "launcher.bat").write_text("@echo off\n", encoding="utf-8")
         config_dir = root / "config"
         config_dir.mkdir(parents=True)
-        self.path = config_dir / "onebot11_123.json"
+        self.path = config_dir / "onebot11_123456.json"
         self.path.write_text(
             json.dumps(
                 {
@@ -49,6 +54,12 @@ class NapCatConfigTests(unittest.TestCase):
             port=3000,
             server_name="test",
             enabled=True,
+        )
+
+    def test_quick_login_helpers(self) -> None:
+        self.assertEqual(quick_login_accounts(self.config), ["123456"])
+        self.assertEqual(
+            launcher_path(self.config), self.root / "launcher.bat"
         )
 
     def test_write_remote_client(self) -> None:

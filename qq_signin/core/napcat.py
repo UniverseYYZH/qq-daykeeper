@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -119,6 +121,58 @@ def best_config() -> NapCatConfig | None:
     if not configs:
         return None
     return next((item for item in configs if item.enabled), configs[0])
+
+
+def launcher_path(config: NapCatConfig) -> Path | None:
+    """返回 NapCat 目录里的启动脚本，优先 launcher.bat。"""
+    for name in (
+        "launcher.bat",
+        "launcher-win10.bat",
+        "launcher-user.bat",
+        "launcher-win10-user.bat",
+    ):
+        path = config.root / name
+        if path.is_file():
+            return path
+    return None
+
+
+def quick_login_accounts(config: NapCatConfig) -> list[str]:
+    """从 NapCat 配置文件名里找出可快速登录的 QQ 号。"""
+    accounts: set[str] = set()
+    config_dir = config.path.parent
+    for path in config_dir.glob("*.json"):
+        match = re.match(
+            r"(?:onebot11|napcat)_(\d{5,12})\.json$", path.name
+        )
+        if match:
+            accounts.add(match.group(1))
+    match = re.search(r"onebot11_(\d{5,12})\.json$", config.path.name)
+    if match:
+        accounts.add(match.group(1))
+    return sorted(accounts, key=lambda value: int(value))
+
+
+def is_napcat_running() -> bool:
+    """检查 NapCat 启动器进程是否还在。"""
+    try:
+        result = subprocess.run(
+            [
+                "tasklist",
+                "/FI",
+                "IMAGENAME eq NapCatWinBootMain.exe",
+                "/NH",
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+            timeout=5,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return "NapCatWinBootMain.exe" in result.stdout
 
 
 def find_qq_emoji_image(face_id: int) -> Path | None:
