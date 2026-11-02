@@ -232,8 +232,12 @@ class RemotePoller(threading.Thread):
                     payload = dict(message)
                     if message_id:
                         payload["message_id"] = message_id
-                    if self.control.handle_event(payload):
-                        self._seen.add(key)
+                    text = extract_text(payload).strip()
+                    if parse_command(text) is None:
+                        continue
+                    # 先记已见，避免事件上报已处理时轮询再次执行
+                    self._seen.add(key)
+                    self.control.handle_event(payload)
             except Exception as exc:
                 self.control.logger.debug("手机指令轮询失败：%s", exc)
             self._stop_event.wait(self.interval)

@@ -107,7 +107,7 @@ class OneBotClient:
         headers = {
             "Content-Type": "application/json; charset=utf-8",
             "Accept": "application/json",
-            "User-Agent": "qq-signin/0.6.3",
+            "User-Agent": "qq-signin/0.6.4",
         }
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
